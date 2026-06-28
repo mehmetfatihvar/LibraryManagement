@@ -1,0 +1,142 @@
+{
+  "info": {
+    "name": "XML Library Management System",
+    "description": "Postman collection for XML-based REST API with full circulation workflow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "apiKey", "value": "library-api-key-dev-2026" }
+  ],
+  "item": [
+    {
+      "name": "Books",
+      "item": [
+        {
+          "name": "List Books",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/xml" }],
+            "url": "{{baseUrl}}/api/v1/books?genre=Sci-Fi&page=1&limit=10"
+          }
+        },
+        {
+          "name": "Create Book",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/xml" },
+              { "key": "Content-Type", "value": "application/xml" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<book isbn=\"978-0-99-888777-6\">\n  <title>Postman Test Book</title>\n  <author>Test Author</author>\n  <publisher>Test Publisher</publisher>\n  <categories><category>Technology</category></categories>\n  <publicationYear>2024</publicationYear>\n  <availableCopies>2</availableCopies>\n</book>"
+            },
+            "url": "{{baseUrl}}/api/v1/books"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Members",
+      "item": [
+        {
+          "name": "List Members",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/xml" }],
+            "url": "{{baseUrl}}/api/v1/members?membershipType=student"
+          }
+        },
+        {
+          "name": "Register Member",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/xml" },
+              { "key": "Content-Type", "value": "application/xml" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<member>\n  <firstName>Postman</firstName>\n  <lastName>Tester</lastName>\n  <email>postman.test@mersin.edu.tr</email>\n  <membershipType>student</membershipType>\n  <joinDate>2025-06-01</joinDate>\n</member>"
+            },
+            "url": "{{baseUrl}}/api/v1/members"
+          }
+        },
+        {
+          "name": "Delete Member",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/xml" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/members/mem-009"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Circulation",
+      "item": [
+        {
+          "name": "Check Out Book",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/xml" },
+              { "key": "Content-Type", "value": "application/xml" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<borrowing bookRef=\"bk-002\" memberRef=\"mem-004\">\n  <status>active</status>\n</borrowing>"
+            },
+            "url": "{{baseUrl}}/api/v1/borrowings"
+          }
+        },
+        {
+          "name": "Return Book",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/xml" },
+              { "key": "X-API-Key", "value": "{{apiKey}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/borrowings/brw-001/return"
+          }
+        },
+        {
+          "name": "List Active Borrowings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/xml" }],
+            "url": "{{baseUrl}}/api/v1/borrowings?status=active"
+          }
+        }
+      ]
+    },
+    {
+      "name": "External & Reports",
+      "item": [
+        {
+          "name": "Enrich ISBN",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/xml" }],
+            "url": "{{baseUrl}}/api/v1/external/enrich/9780134685991"
+          }
+        },
+        {
+          "name": "XSLT Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/reports/dashboard"
+          }
+        }
+      ]
+    }
+  ]
+}

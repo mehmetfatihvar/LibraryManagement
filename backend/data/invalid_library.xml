@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  INVALID LIBRARY XML - Intentionally broken for XSD validation demo.
+  Failure reasons:
+  1. Invalid ISBN format (missing 978- prefix and check digit pattern)
+  2. Invalid genre enumeration (uses "Horror" which is not in schema)
+  3. publicationYear exceeds max reasonable bound (99999)
+  4. Invalid email format for member
+  5. Duplicate ID attribute on books (bk-dup used twice - violates xs:ID uniqueness)
+  6. bookRef references non-existent ID (bk-missing)
+-->
+<library id="lib-invalid" name="Invalid Demo Library"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="schema.xsd schema.xsd">
+  <books>
+    <book id="bk-dup" isbn="NOT-A-VALID-ISBN">
+      <title>Broken Book One</title>
+      <author>Unknown Author</author>
+      <publisher>Bad Publisher</publisher>
+      <categories>
+        <category>Horror</category>
+      </categories>
+      <publicationYear>99999</publicationYear>
+      <availableCopies>-5</availableCopies>
+    </book>
+    <book id="bk-dup" isbn="978-0-00-000000-0">
+      <title>Duplicate ID Book</title>
+      <author>Another Author</author>
+      <publisher>Publisher</publisher>
+      <categories>
+        <category>Sci-Fi</category>
+      </categories>
+      <publicationYear>2020</publicationYear>
+      <availableCopies>1</availableCopies>
+    </book>
+  </books>
+  <members>
+    <member id="mem-bad">
+      <firstName>Bad</firstName>
+      <lastName>Email</lastName>
+      <email>not-an-email</email>
+      <membershipType>vip</membershipType>
+      <joinDate>2024-01-01</joinDate>
+    </member>
+  </members>
+  <borrowings>
+    <borrowing id="brw-bad" bookRef="bk-missing" memberRef="mem-bad">
+      <borrowDate>2024-06-01</borrowDate>
+      <dueDate>2024-07-01</dueDate>
+      <status>cancelled</status>
+    </borrowing>
+  </borrowings>
+</library>

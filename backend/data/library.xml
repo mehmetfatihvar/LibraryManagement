@@ -1,0 +1,366 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<library xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="lib-001" name="Mersin University Digital Library" xsi:schemaLocation="schema.xsd schema.xsd">
+  <books>
+    <book id="bk-001" isbn="978-0-13-468599-1">
+      <title>Effective Java</title>
+      <author>Joshua Bloch</author>
+      <publisher>Addison-Wesley</publisher>
+      <categories><category>Technology</category></categories>
+      <publicationYear>2018</publicationYear>
+      <availableCopies>5</availableCopies>
+      <description>Best practices for the Java programming language.</description>
+    </book>
+    <book id="bk-002" isbn="978-0-26-203384-8">
+      <title>Introduction to Algorithms</title>
+      <author>Thomas H. Cormen</author>
+      <publisher>MIT Press</publisher>
+      <categories><category>Technology</category></categories>
+      <publicationYear>2009</publicationYear>
+      <availableCopies>3</availableCopies>
+      <description>Comprehensive guide to algorithms and data structures.</description>
+    </book>
+    <book id="bk-003" isbn="978-0-44-101359-5">
+      <title>Dune</title>
+      <author>Frank Herbert</author>
+      <publisher>Ace Books</publisher>
+      <categories><category>Sci-Fi</category></categories>
+      <publicationYear>1965</publicationYear>
+      <availableCopies>7</availableCopies>
+      <description>Epic science fiction saga set on the desert planet Arrakis.</description>
+    </book>
+    <book id="bk-004" isbn="978-0-55-338016-3">
+      <title>A Game of Thrones</title>
+      <author>George R.R. Martin</author>
+      <publisher>Bantam Books</publisher>
+      <categories><category>Fantasy</category></categories>
+      <publicationYear>1996</publicationYear>
+      <availableCopies>6</availableCopies>
+      <description>First book in the Song of Ice and Fire series.</description>
+    </book>
+    <book id="bk-005" isbn="978-0-14-028333-4">
+      <title>1984</title>
+      <author>George Orwell</author>
+      <publisher>Penguin Books</publisher>
+      <categories><category>Classic</category><category>Sci-Fi</category></categories>
+      <publicationYear>1949</publicationYear>
+      <availableCopies>10</availableCopies>
+      <description>Dystopian novel about totalitarian surveillance state.</description>
+    </book>
+    <book id="bk-006" isbn="978-0-06-112008-4">
+      <title>To Kill a Mockingbird</title>
+      <author>Harper Lee</author>
+      <publisher>HarperCollins</publisher>
+      <categories><category>Classic</category></categories>
+      <publicationYear>1960</publicationYear>
+      <availableCopies>4</availableCopies>
+      <description>Story of racial injustice in the American South.</description>
+    </book>
+    <book id="bk-007" isbn="978-0-31-676948-8">
+      <title>The Catcher in the Rye</title>
+      <author>J.D. Salinger</author>
+      <publisher>Little, Brown</publisher>
+      <categories><category>Classic</category></categories>
+      <publicationYear>1951</publicationYear>
+      <availableCopies>2</availableCopies>
+      <description>Coming-of-age story of Holden Caulfield in New York.</description>
+    </book>
+    <book id="bk-008" isbn="978-0-14-143951-8">
+      <title>Pride and Prejudice</title>
+      <author>Jane Austen</author>
+      <publisher>Penguin Classics</publisher>
+      <categories><category>Romance</category><category>Classic</category></categories>
+      <publicationYear>1813</publicationYear>
+      <availableCopies>7</availableCopies>
+      <description>Classic romance between Elizabeth Bennet and Mr. Darcy.</description>
+    </book>
+    <book id="bk-009" isbn="978-0-06-231500-7">
+      <title>The Alchemist</title>
+      <author>Paulo Coelho</author>
+      <publisher>HarperOne</publisher>
+      <categories><category>Classic</category></categories>
+      <publicationYear>1988</publicationYear>
+      <availableCopies>9</availableCopies>
+      <description>A shepherd boy's journey to find his personal legend.</description>
+    </book>
+    <book id="bk-010" isbn="978-0-30-727767-3">
+      <title>The Da Vinci Code</title>
+      <author>Dan Brown</author>
+      <publisher>Anchor</publisher>
+      <categories><category>Mystery</category></categories>
+      <publicationYear>2003</publicationYear>
+      <availableCopies>5</availableCopies>
+      <description>Thriller involving secret societies and religious mysteries.</description>
+    </book>
+    <book id="bk-011" isbn="978-0-14-028329-7">
+      <title>Foundation</title>
+      <author>Isaac Asimov</author>
+      <publisher>Bantam Spectra</publisher>
+      <categories><category>Sci-Fi</category></categories>
+      <publicationYear>1951</publicationYear>
+      <availableCopies>4</availableCopies>
+      <description>Galactic empire collapse and psychohistory predictions.</description>
+    </book>
+    <book id="bk-012" isbn="978-0-55-321369-7">
+      <title>Neuromancer</title>
+      <author>William Gibson</author>
+      <publisher>Ace</publisher>
+      <categories><category>Sci-Fi</category><category>Technology</category></categories>
+      <publicationYear>1984</publicationYear>
+      <availableCopies>3</availableCopies>
+      <description>Seminal cyberpunk novel about hackers and AI.</description>
+    </book>
+    <book id="bk-013" isbn="978-0-06-085052-4">
+      <title>Brave New World</title>
+      <author>Aldous Huxley</author>
+      <publisher>Harper Perennial</publisher>
+      <categories><category>Sci-Fi</category><category>Classic</category></categories>
+      <publicationYear>1932</publicationYear>
+      <availableCopies>6</availableCopies>
+      <description>Dystopian future of genetic engineering and social control.</description>
+    </book>
+    <book id="bk-014" isbn="978-0-14-044913-6">
+      <title>The Odyssey</title>
+      <author>Homer</author>
+      <publisher>Penguin Classics</publisher>
+      <categories><category>Classic</category><category>History</category></categories>
+      <publicationYear>800</publicationYear>
+      <availableCopies>2</availableCopies>
+      <description>Epic poem of Odysseus's journey home after the Trojan War.</description>
+    </book>
+    <book id="bk-015" isbn="978-0-14-044926-6">
+      <title>Crime and Punishment</title>
+      <author>Fyodor Dostoevsky</author>
+      <publisher>Penguin Classics</publisher>
+      <categories><category>Classic</category><category>Mystery</category></categories>
+      <publicationYear>1866</publicationYear>
+      <availableCopies>3</availableCopies>
+      <description>Psychological novel of guilt and redemption in St. Petersburg.</description>
+    </book>
+    <book id="bk-016" isbn="978-0-06-231609-7">
+      <title>Sapiens: A Brief History of Humankind</title>
+      <author>Yuval Noah Harari</author>
+      <publisher>Harper</publisher>
+      <categories><category>History</category><category>Biography</category></categories>
+      <publicationYear>2015</publicationYear>
+      <availableCopies>8</availableCopies>
+      <description>History of Homo sapiens from the Stone Age to modern era.</description>
+    </book>
+    <book id="bk-017" isbn="978-0-14-312774-1">
+      <title>Steve Jobs</title>
+      <author>Walter Isaacson</author>
+      <publisher>Simon &amp; Schuster</publisher>
+      <categories><category>Biography</category><category>Technology</category></categories>
+      <publicationYear>2011</publicationYear>
+      <availableCopies>5</availableCopies>
+      <description>Authorized biography of Apple co-founder Steve Jobs.</description>
+    </book>
+    <book id="bk-018" isbn="978-0-59-600712-6">
+      <title>Head First Design Patterns</title>
+      <author>Eric Freeman</author>
+      <publisher>O'Reilly Media</publisher>
+      <categories><category>Technology</category></categories>
+      <publicationYear>2004</publicationYear>
+      <availableCopies>4</availableCopies>
+      <description>Visual guide to software design patterns in Java.</description>
+    </book>
+    <book id="bk-019" isbn="978-0-74-327356-5">
+      <title>The Great Gatsby</title>
+      <author>F. Scott Fitzgerald</author>
+      <publisher>Scribner</publisher>
+      <categories><category>Classic</category><category>Romance</category></categories>
+      <publicationYear>1925</publicationYear>
+      <availableCopies>6</availableCopies>
+      <description>Jazz Age tale of wealth, love, and the American Dream.</description>
+    </book>
+    <book id="bk-020" isbn="978-0-14-243723-0">
+      <title>Frankenstein</title>
+      <author>Mary Shelley</author>
+      <publisher>Penguin Classics</publisher>
+      <categories><category>Sci-Fi</category><category>Classic</category></categories>
+      <publicationYear>1818</publicationYear>
+      <availableCopies>3</availableCopies>
+      <description>Gothic novel about a scientist and his monstrous creation.</description>
+    </book>
+    <book id="bk-021" isbn="978-0-06-231050-7">
+      <title>The Hobbit</title>
+      <author>J.R.R. Tolkien</author>
+      <publisher>Mariner Books</publisher>
+      <categories><category>Fantasy</category></categories>
+      <publicationYear>1937</publicationYear>
+      <availableCopies>7</availableCopies>
+      <description>Bilbo Baggins's unexpected journey with thirteen dwarves.</description>
+    </book>
+    <book id="bk-022" isbn="978-0-14-044930-3">
+      <title>War and Peace</title>
+      <author>Leo Tolstoy</author>
+      <publisher>Penguin Classics</publisher>
+      <categories><category>History</category><category>Classic</category></categories>
+      <publicationYear>1869</publicationYear>
+      <availableCopies>2</availableCopies>
+      <description>Epic novel of Russian society during the Napoleonic era.</description>
+    </book>
+    <book id="bk-023" isbn="978-0-14-118260-5">
+      <title>The Lord of the Rings</title>
+      <author>J.R.R. Tolkien</author>
+      <publisher>Mariner Books</publisher>
+      <categories><category>Fantasy</category></categories>
+      <publicationYear>1954</publicationYear>
+      <availableCopies>5</availableCopies>
+      <description>Epic fantasy quest to destroy the One Ring.</description>
+    </book>
+    <book id="bk-024" isbn="978-0-13-235088-4">
+      <title>Clean Code</title>
+      <author>Robert C. Martin</author>
+      <publisher>Prentice Hall</publisher>
+      <categories><category>Technology</category></categories>
+      <publicationYear>2008</publicationYear>
+      <availableCopies>6</availableCopies>
+      <description>Handbook of agile software craftsmanship principles.</description>
+    </book>
+    <book id="bk-025" isbn="978-0-59-651774-3">
+      <title>JavaScript: The Good Parts</title>
+      <author>Douglas Crockford</author>
+      <publisher>O'Reilly Media</publisher>
+      <categories><category>Technology</category></categories>
+      <publicationYear>2008</publicationYear>
+      <availableCopies>4</availableCopies>
+      <description>Guide to the elegant subset of the JavaScript language.</description>
+    </book>
+    <book id="bk-026" isbn="978-0-76-531142-5">
+      <title>The Name of the Wind</title>
+      <author>Patrick Rothfuss</author>
+      <publisher>DAW Books</publisher>
+      <categories><category>Fantasy</category></categories>
+      <publicationYear>2007</publicationYear>
+      <availableCopies>5</availableCopies>
+      <description>Story of Kvothe, a legendary figure told in his own words.</description>
+    </book>
+    <book id="bk-027" isbn="978-0-59-313520-4">
+      <title>Project Hail Mary</title>
+      <author>Andy Weir</author>
+      <publisher>Ballantine Books</publisher>
+      <categories><category>Sci-Fi</category></categories>
+      <publicationYear>2021</publicationYear>
+      <availableCopies>7</availableCopies>
+      <description>A lone astronaut must save humanity from extinction.</description>
+    </book>
+  <book isbn="978-0-99-777666-5" id="bk-028"><title>XML Processing Guide</title><author>Jane Developer</author><publisher>Tech Press</publisher><categories><category>Technology</category></categories><publicationYear>2024</publicationYear><availableCopies>3</availableCopies></book></books>
+  <members>
+    <member id="mem-001">
+      <firstName>Ahmet</firstName>
+      <lastName>Efesen</lastName>
+      <email>ahmet.efesen@mersin.edu.tr</email>
+      <membershipType>student</membershipType>
+      <joinDate>2023-09-01</joinDate>
+    </member>
+    <member id="mem-002">
+      <firstName>Elif</firstName>
+      <lastName>Yilmaz</lastName>
+      <email>elif.yilmaz@mersin.edu.tr</email>
+      <membershipType>student</membershipType>
+      <joinDate>2023-09-15</joinDate>
+    </member>
+    <member id="mem-003">
+      <firstName>Dr. Mehmet</firstName>
+      <lastName>Kaya</lastName>
+      <email>mehmet.kaya@mersin.edu.tr</email>
+      <membershipType>faculty</membershipType>
+      <joinDate>2018-03-01</joinDate>
+    </member>
+    <member id="mem-004">
+      <firstName>Zeynep</firstName>
+      <lastName>Demir</lastName>
+      <email>zeynep.demir@gmail.com</email>
+      <membershipType>public</membershipType>
+      <joinDate>2024-01-10</joinDate>
+    </member>
+    <member id="mem-005">
+      <firstName>Can</firstName>
+      <lastName>Ozturk</lastName>
+      <email>can.ozturk@mersin.edu.tr</email>
+      <membershipType>student</membershipType>
+      <joinDate>2024-02-01</joinDate>
+    </member>
+    <member id="mem-006">
+      <firstName>Prof. Ayse</firstName>
+      <lastName>Arslan</lastName>
+      <email>ayse.arslan@mersin.edu.tr</email>
+      <membershipType>faculty</membershipType>
+      <joinDate>2015-09-01</joinDate>
+    </member>
+    <member id="mem-007">
+      <firstName>Burak</firstName>
+      <lastName>Celik</lastName>
+      <email>burak.celik@mersin.edu.tr</email>
+      <membershipType>student</membershipType>
+      <joinDate>2023-10-01</joinDate>
+    </member>
+    <member id="mem-008">
+      <firstName>Selin</firstName>
+      <lastName>Aydin</lastName>
+      <email>selin.aydin@gmail.com</email>
+      <membershipType>public</membershipType>
+      <joinDate>2024-03-15</joinDate>
+    </member>
+  <member id="mem-009">
+  <firstName>mehmet</firstName>
+  <lastName>var</lastName>
+  <email>memovar@mersin.edu.tr</email>
+  <membershipType>student</membershipType>
+  <joinDate>2026-06-28</joinDate>
+</member></members>
+  <borrowings>
+    <borrowing id="brw-001" bookRef="bk-003" memberRef="mem-001">
+      <borrowDate>2026-06-01</borrowDate>
+      <dueDate>2026-07-01</dueDate>
+      <status>active</status>
+    </borrowing>
+    <borrowing id="brw-002" bookRef="bk-011" memberRef="mem-002">
+      <borrowDate>2026-06-05</borrowDate>
+      <dueDate>2026-07-05</dueDate>
+      <status>active</status>
+    </borrowing>
+    <borrowing id="brw-003" bookRef="bk-005" memberRef="mem-003">
+      <borrowDate>2024-11-01</borrowDate>
+      <dueDate>2024-12-01</dueDate>
+      <returnDate>2024-11-28</returnDate>
+      <status>returned</status>
+    </borrowing>
+    <borrowing id="brw-004" bookRef="bk-012" memberRef="mem-004">
+      <borrowDate>2026-05-01</borrowDate>
+      <dueDate>2026-06-01</dueDate>
+      <status>overdue</status>
+    </borrowing>
+    <borrowing id="brw-005" bookRef="bk-018" memberRef="mem-005">
+      <borrowDate>2026-06-10</borrowDate>
+      <dueDate>2026-07-10</dueDate>
+      <status>active</status>
+    </borrowing>
+    <borrowing id="brw-006" bookRef="bk-016" memberRef="mem-006">
+      <borrowDate>2026-06-15</borrowDate>
+      <dueDate>2026-07-15</dueDate>
+      <status>active</status>
+    </borrowing>
+    <borrowing id="brw-007" bookRef="bk-021" memberRef="mem-007">
+      <borrowDate>2024-12-15</borrowDate>
+      <dueDate>2025-01-15</dueDate>
+      <returnDate>2025-01-10</returnDate>
+      <status>returned</status>
+    </borrowing>
+    <borrowing id="brw-008" bookRef="bk-027" memberRef="mem-001">
+      <borrowDate>2026-06-20</borrowDate>
+      <dueDate>2026-07-20</dueDate>
+      <status>active</status>
+    </borrowing>
+    <borrowing id="brw-009" bookRef="bk-010" memberRef="mem-008">
+      <borrowDate>2026-04-01</borrowDate>
+      <dueDate>2026-05-01</dueDate>
+      <status>overdue</status>
+    </borrowing>
+    <borrowing id="brw-010" bookRef="bk-024" memberRef="mem-002">
+      <borrowDate>2026-06-18</borrowDate>
+      <dueDate>2026-07-18</dueDate>
+      <status>active</status>
+    </borrowing>
+  <borrowing id="brw-011" bookRef="bk-003" memberRef="mem-009"><borrowDate>2026-06-28</borrowDate><dueDate>2026-07-12</dueDate><returnDate>2026-06-28</returnDate><status>returned</status></borrowing><borrowing id="brw-012" bookRef="bk-003" memberRef="mem-002"><borrowDate>2026-06-28</borrowDate><dueDate>2026-07-12</dueDate><status>active</status></borrowing></borrowings>
+</library>

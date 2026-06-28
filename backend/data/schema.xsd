@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <xs:simpleType name="isbnType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="978-[0-9]{1,5}-[0-9]{1,7}-[0-9]{1,7}-[0-9]"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="genreType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Sci-Fi"/>
+      <xs:enumeration value="Fantasy"/>
+      <xs:enumeration value="History"/>
+      <xs:enumeration value="Mystery"/>
+      <xs:enumeration value="Romance"/>
+      <xs:enumeration value="Technology"/>
+      <xs:enumeration value="Biography"/>
+      <xs:enumeration value="Classic"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="emailType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="membershipTypeEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="student"/>
+      <xs:enumeration value="faculty"/>
+      <xs:enumeration value="public"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="borrowingStatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="active"/>
+      <xs:enumeration value="returned"/>
+      <xs:enumeration value="overdue"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="categoriesType">
+    <xs:sequence>
+      <xs:element name="category" type="genreType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="bookType">
+    <xs:sequence>
+      <xs:element name="title" type="xs:string"/>
+      <xs:element name="author" type="xs:string"/>
+      <xs:element name="publisher" type="xs:string"/>
+      <xs:element name="categories" type="categoriesType"/>
+      <xs:element name="publicationYear" type="xs:positiveInteger"/>
+      <xs:element name="availableCopies" type="xs:nonNegativeInteger"/>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID" use="required"/>
+    <xs:attribute name="isbn" type="isbnType" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="booksType">
+    <xs:sequence>
+      <xs:element name="book" type="bookType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="memberType">
+    <xs:sequence>
+      <xs:element name="firstName" type="xs:string"/>
+      <xs:element name="lastName" type="xs:string"/>
+      <xs:element name="email" type="emailType"/>
+      <xs:element name="membershipType" type="membershipTypeEnum"/>
+      <xs:element name="joinDate" type="xs:date"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="membersType">
+    <xs:sequence>
+      <xs:element name="member" type="memberType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="borrowingType">
+    <xs:sequence>
+      <xs:element name="borrowDate" type="xs:date"/>
+      <xs:element name="dueDate" type="xs:date"/>
+      <xs:element name="returnDate" type="xs:date" minOccurs="0"/>
+      <xs:element name="status" type="borrowingStatusType"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID" use="required"/>
+    <xs:attribute name="bookRef" type="xs:IDREF" use="required"/>
+    <xs:attribute name="memberRef" type="xs:IDREF" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="borrowingsType">
+    <xs:sequence>
+      <xs:element name="borrowing" type="borrowingType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="libraryType">
+    <xs:sequence>
+      <xs:element name="books" type="booksType"/>
+      <xs:element name="members" type="membersType"/>
+      <xs:element name="borrowings" type="borrowingsType"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID" use="required"/>
+    <xs:attribute name="name" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="library" type="libraryType"/>
+
+  <!-- Standalone elements for POST/PUT requests -->
+  <xs:element name="book" type="bookType"/>
+  <xs:element name="member" type="memberType"/>
+  <xs:element name="borrowing" type="borrowingType"/>
+
+  <!-- Standardized error response -->
+  <xs:complexType name="errorType">
+    <xs:sequence>
+      <xs:element name="code" type="xs:positiveInteger"/>
+      <xs:element name="message" type="xs:string"/>
+      <xs:element name="detail" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="error" type="errorType"/>
+
+  <!-- Enriched book from external service -->
+  <xs:complexType name="enrichedBookType">
+    <xs:sequence>
+      <xs:element name="title" type="xs:string"/>
+      <xs:element name="author" type="xs:string"/>
+      <xs:element name="publisher" type="xs:string" minOccurs="0"/>
+      <xs:element name="publicationYear" type="xs:positiveInteger" minOccurs="0"/>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="categories" type="categoriesType" minOccurs="0"/>
+      <xs:element name="source" type="xs:string"/>
+    </xs:sequence>
+    <xs:attribute name="isbn" type="isbnType" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="enrichedBook" type="enrichedBookType"/>
+
+</xs:schema>
