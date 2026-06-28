@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { deleteBook, fetchBooks, fetchBorrowings, fetchMembers } from "@/lib/api";
 import {
@@ -81,7 +82,11 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Total Books", value: total, color: "text-sky-400" },
+          {
+            label: genre || search ? "Books (filtered)" : "Total Books",
+            value: total,
+            color: "text-sky-400",
+          },
           { label: "Members", value: members.length, color: "text-violet-400" },
           { label: "Active Loans", value: activeBorrowings, color: "text-emerald-400" },
           { label: "Overdue", value: overdueBorrowings, color: "text-red-400" },
@@ -142,20 +147,20 @@ export default function DashboardPage() {
       <BookList books={books} loading={loading} onDelete={handleDelete} deletingId={deletingId} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <a
+        <Link
           href="/members"
           className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-5 transition-colors hover:bg-violet-500/20"
         >
           <p className="font-semibold text-violet-300">Manage Members</p>
           <p className="mt-1 text-sm text-slate-400">Register patrons, edit profiles, enforce loan limits</p>
-        </a>
-        <a
+        </Link>
+        <Link
           href="/borrowings"
           className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 transition-colors hover:bg-emerald-500/20"
         >
           <p className="font-semibold text-emerald-300">Circulation Desk</p>
           <p className="mt-1 text-sm text-slate-400">Check out and return books, track overdue items</p>
-        </a>
+        </Link>
       </div>
 
       {totalPages > 1 && (

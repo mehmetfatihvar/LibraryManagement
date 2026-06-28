@@ -22,7 +22,7 @@ async def list_books(
     limit: int = 10,
 ):
     books, total = manager.get_all_books(genre=genre, search=search, page=page, limit=limit)
-    content = books_collection_xml(books)
+    content = books_collection_xml(books, total=total)
     response = xml_response(content)
     response.headers["X-Total-Count"] = str(total)
     response.headers["X-Page"] = str(page)

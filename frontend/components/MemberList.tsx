@@ -1,6 +1,6 @@
 "use client";
 
-import { Member } from "@/lib/xmlParser";
+import { Borrowing, Member, countMemberLoans } from "@/lib/xmlParser";
 
 const typeColors: Record<string, string> = {
   student: "bg-sky-500/15 text-sky-300 border-sky-500/30",
@@ -10,13 +10,14 @@ const typeColors: Record<string, string> = {
 
 interface Props {
   members: Member[];
+  borrowings?: Borrowing[];
   loading: boolean;
   onEdit: (member: Member) => void;
   onDelete: (id: string) => void;
   deletingId: string | null;
 }
 
-export default function MemberList({ members, loading, onEdit, onDelete, deletingId }: Props) {
+export default function MemberList({ members, borrowings = [], loading, onEdit, onDelete, deletingId }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -43,6 +44,7 @@ export default function MemberList({ members, loading, onEdit, onDelete, deletin
               <th className="px-4 py-3 font-medium text-slate-400">Email</th>
               <th className="px-4 py-3 font-medium text-slate-400">Type</th>
               <th className="px-4 py-3 font-medium text-slate-400">Join Date</th>
+              <th className="px-4 py-3 font-medium text-slate-400">Loans</th>
               <th className="px-4 py-3 font-medium text-slate-400">Actions</th>
             </tr>
           </thead>
@@ -69,6 +71,11 @@ export default function MemberList({ members, loading, onEdit, onDelete, deletin
                   </span>
                 </td>
                 <td className="px-4 py-3 text-slate-300">{member.joinDate}</td>
+                <td className="px-4 py-3">
+                  <span className="font-medium text-white">
+                    {countMemberLoans(borrowings, member.id)}
+                  </span>
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button

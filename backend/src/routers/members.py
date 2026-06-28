@@ -22,7 +22,7 @@ async def list_members(
         membership_type=membershipType,
         search=search,
     )
-    return xml_response(members_collection_xml(members))
+    return xml_response(members_collection_xml(members, total=len(members)))
 
 
 @router.get("/{member_id}", dependencies=[Depends(require_xml_accept)])

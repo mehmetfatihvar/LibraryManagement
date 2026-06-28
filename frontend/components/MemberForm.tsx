@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createMember, updateMember } from "@/lib/api";
 import {
   MEMBERSHIP_TYPES,
@@ -40,6 +40,22 @@ export default function MemberForm({ onSuccess, editMember, onCancelEdit }: Prop
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; detail?: string } | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (editMember) {
+      setForm({
+        firstName: editMember.firstName,
+        lastName: editMember.lastName,
+        email: editMember.email,
+        membershipType: editMember.membershipType,
+        joinDate: editMember.joinDate,
+      });
+    } else {
+      setForm(emptyForm);
+    }
+    setError(null);
+    setSuccess(null);
+  }, [editMember]);
 
   const update = (field: keyof MemberFormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));

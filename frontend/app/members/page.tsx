@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { deleteMember, fetchMembers } from "@/lib/api";
-import { Member, MEMBERSHIP_TYPES, parseMembersXml } from "@/lib/xmlParser";
+import { deleteMember, fetchBorrowings, fetchMembers } from "@/lib/api";
+import { Member, MEMBERSHIP_TYPES, Borrowing, parseBorrowingsXml, parseMembersXml } from "@/lib/xmlParser";
 import MemberForm from "@/components/MemberForm";
 import MemberList from "@/components/MemberList";
 import XmlErrorBanner from "@/components/XmlErrorBanner";
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [borrowings, setBorrowings] = useState<Borrowing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; detail?: string } | null>(null);
   const [membershipFilter, setMembershipFilter] = useState("");
@@ -20,11 +21,15 @@ export default function MembersPage() {
     setLoading(true);
     setError(null);
     try {
-      const xml = await fetchMembers({
-        membershipType: membershipFilter || undefined,
-        search: search || undefined,
-      });
-      setMembers(parseMembersXml(xml));
+      const [membersXml, borrowingsXml] = await Promise.all([
+        fetchMembers({
+          membershipType: membershipFilter || undefined,
+          search: search || undefined,
+        }),
+        fetchBorrowings(),
+      ]);
+      setMembers(parseMembersXml(membersXml));
+      setBorrowings(parseBorrowingsXml(borrowingsXml));
     } catch (err) {
       const apiErr = err as { message?: string; detail?: string };
       setError({ message: apiErr.message || "Failed to load members", detail: apiErr.detail });
@@ -105,6 +110,7 @@ export default function MembersPage() {
 
       <MemberList
         members={members}
+        borrowings={borrowings}
         loading={loading}
         onEdit={setEditMember}
         onDelete={handleDelete}

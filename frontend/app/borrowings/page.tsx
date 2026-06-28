@@ -36,7 +36,7 @@ export default function BorrowingsPage() {
     try {
       const [borrowingsXml, booksRes, membersXml] = await Promise.all([
         fetchBorrowings({ status: statusFilter || undefined }),
-        fetchBooks({ limit: 100 }),
+        fetchBooks({ limit: 500 }),
         fetchMembers(),
       ]);
       setBorrowings(parseBorrowingsXml(borrowingsXml));

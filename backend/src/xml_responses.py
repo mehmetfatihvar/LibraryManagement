@@ -20,25 +20,22 @@ def element_to_bytes(element: etree._Element, wrap: str | None = None) -> bytes:
     return etree.tostring(element, pretty_print=True, xml_declaration=True, encoding="UTF-8")
 
 
-def books_collection_xml(books: list[etree._Element]) -> bytes:
-    root = etree.Element("books")
-    root.set("count", str(len(books)))
-    for book in books:
-        root.append(book)
+def _collection_xml(tag: str, items: list[etree._Element], total: int | None = None) -> bytes:
+    root = etree.Element(tag)
+    root.set("count", str(len(items)))
+    root.set("totalCount", str(total if total is not None else len(items)))
+    for item in items:
+        root.append(item)
     return etree.tostring(root, pretty_print=True, xml_declaration=True, encoding="UTF-8")
 
 
-def members_collection_xml(members: list[etree._Element]) -> bytes:
-    root = etree.Element("members")
-    root.set("count", str(len(members)))
-    for member in members:
-        root.append(member)
-    return etree.tostring(root, pretty_print=True, xml_declaration=True, encoding="UTF-8")
+def books_collection_xml(books: list[etree._Element], total: int | None = None) -> bytes:
+    return _collection_xml("books", books, total)
 
 
-def borrowings_collection_xml(borrowings: list[etree._Element]) -> bytes:
-    root = etree.Element("borrowings")
-    root.set("count", str(len(borrowings)))
-    for borrowing in borrowings:
-        root.append(borrowing)
-    return etree.tostring(root, pretty_print=True, xml_declaration=True, encoding="UTF-8")
+def members_collection_xml(members: list[etree._Element], total: int | None = None) -> bytes:
+    return _collection_xml("members", members, total)
+
+
+def borrowings_collection_xml(borrowings: list[etree._Element], total: int | None = None) -> bytes:
+    return _collection_xml("borrowings", borrowings, total)

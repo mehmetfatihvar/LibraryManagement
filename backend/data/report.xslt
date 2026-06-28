@@ -54,11 +54,11 @@
             <div class="label">Registered Members</div>
           </div>
           <div class="stat-card">
-            <div class="value"><xsl:value-of select="count(/library/borrowings/borrowing[@status='active'])"/></div>
+            <div class="value"><xsl:value-of select="count(/library/borrowings/borrowing[status='active'])"/></div>
             <div class="label">Active Borrowings</div>
           </div>
           <div class="stat-card">
-            <div class="value"><xsl:value-of select="count(/library/borrowings/borrowing[@status='overdue'])"/></div>
+            <div class="value"><xsl:value-of select="count(/library/borrowings/borrowing[status='overdue'])"/></div>
             <div class="label">Overdue Items</div>
           </div>
           <div class="stat-card">
@@ -118,7 +118,7 @@
               </tr>
             </thead>
             <tbody>
-              <xsl:for-each select="/library/borrowings/borrowing[@status='active' or @status='overdue']">
+              <xsl:for-each select="/library/borrowings/borrowing[status='active' or status='overdue']">
                 <tr>
                   <td><xsl:value-of select="@id"/></td>
                   <td>
@@ -154,7 +154,7 @@
                 <th>Name</th>
                 <th>Email</th>
                 <th>Type</th>
-                <th>Active Loans</th>
+                <th>Active / Overdue Loans</th>
               </tr>
             </thead>
             <tbody>
@@ -169,7 +169,7 @@
                   <td><xsl:value-of select="email"/></td>
                   <td><xsl:value-of select="membershipType"/></td>
                   <td>
-                    <xsl:value-of select="count(/library/borrowings/borrowing[@memberRef=current()/@id and @status='active'])"/>
+                    <xsl:value-of select="count(/library/borrowings/borrowing[@memberRef=current()/@id and (status='active' or status='overdue')])"/>
                   </td>
                 </tr>
               </xsl:for-each>

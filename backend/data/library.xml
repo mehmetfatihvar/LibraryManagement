@@ -302,13 +302,14 @@
       <membershipType>public</membershipType>
       <joinDate>2024-03-15</joinDate>
     </member>
-  <member id="mem-009">
-  <firstName>mehmet</firstName>
-  <lastName>var</lastName>
-  <email>memovar@mersin.edu.tr</email>
-  <membershipType>student</membershipType>
-  <joinDate>2026-06-28</joinDate>
-</member></members>
+    <member id="mem-009">
+      <firstName>Mehmet</firstName>
+      <lastName>Var</lastName>
+      <email>memovar@mersin.edu.tr</email>
+      <membershipType>student</membershipType>
+      <joinDate>2026-06-28</joinDate>
+    </member>
+  </members>
   <borrowings>
     <borrowing id="brw-001" bookRef="bk-003" memberRef="mem-001">
       <borrowDate>2026-06-01</borrowDate>
@@ -362,5 +363,16 @@
       <dueDate>2026-07-18</dueDate>
       <status>active</status>
     </borrowing>
-  <borrowing id="brw-011" bookRef="bk-003" memberRef="mem-009"><borrowDate>2026-06-28</borrowDate><dueDate>2026-07-12</dueDate><returnDate>2026-06-28</returnDate><status>returned</status></borrowing><borrowing id="brw-012" bookRef="bk-003" memberRef="mem-002"><borrowDate>2026-06-28</borrowDate><dueDate>2026-07-12</dueDate><status>active</status></borrowing></borrowings>
+    <borrowing id="brw-011" bookRef="bk-003" memberRef="mem-009">
+      <borrowDate>2026-06-28</borrowDate>
+      <dueDate>2026-07-12</dueDate>
+      <returnDate>2026-06-28</returnDate>
+      <status>returned</status>
+    </borrowing>
+    <borrowing id="brw-012" bookRef="bk-003" memberRef="mem-002">
+      <borrowDate>2026-06-28</borrowDate>
+      <dueDate>2026-07-12</dueDate>
+      <status>active</status>
+    </borrowing>
+  </borrowings>
 </library>

@@ -1,3 +1,5 @@
+import { parseCollectionMeta } from "./xmlParser";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "library-api-key-dev-2026";
 
@@ -46,9 +48,11 @@ export async function fetchBooks(params?: {
   const url = `${API_BASE}/api/v1/books?${query.toString()}`;
   const res = await fetch(url, { headers: { Accept: "application/xml" } });
   const xml = await handleResponse(res);
+  const headerTotal = parseInt(res.headers.get("X-Total-Count") || "0", 10);
+  const { totalCount } = parseCollectionMeta(xml);
   return {
     xml,
-    total: parseInt(res.headers.get("X-Total-Count") || "0", 10),
+    total: headerTotal > 0 ? headerTotal : totalCount,
     page: parseInt(res.headers.get("X-Page") || "1", 10),
   };
 }

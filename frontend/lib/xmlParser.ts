@@ -50,6 +50,23 @@ function getText(el: Element | null, tag: string): string {
   return el?.querySelector(tag)?.textContent?.trim() || "";
 }
 
+/** Parse totalCount/count attributes from collection XML roots (CORS-safe fallback). */
+export function parseCollectionMeta(xml: string): { count: number; totalCount: number } {
+  const doc = new DOMParser().parseFromString(xml, "application/xml");
+  const root = doc.documentElement;
+  const count = parseInt(root.getAttribute("count") || "0", 10);
+  const totalAttr = root.getAttribute("totalCount");
+  const totalCount = totalAttr ? parseInt(totalAttr, 10) : count;
+  return { count, totalCount };
+}
+
+/** Count active + overdue loans for a member. */
+export function countMemberLoans(borrowings: Borrowing[], memberId: string): number {
+  return borrowings.filter(
+    (b) => b.memberRef === memberId && (b.status === "active" || b.status === "overdue")
+  ).length;
+}
+
 export function parseBooksXml(xml: string): Book[] {
   const doc = new DOMParser().parseFromString(xml, "application/xml");
   if (doc.querySelector("parsererror")) {

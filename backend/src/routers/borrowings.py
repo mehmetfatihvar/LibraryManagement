@@ -29,7 +29,7 @@ async def list_borrowings(
         member_ref=memberRef,
         book_ref=bookRef,
     )
-    return xml_response(borrowings_collection_xml(borrowings))
+    return xml_response(borrowings_collection_xml(borrowings, total=len(borrowings)))
 
 
 @router.get("/{borrowing_id}", dependencies=[Depends(require_xml_accept)])
