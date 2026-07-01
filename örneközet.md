@@ -1,4 +1,14 @@
-# örneközet.md — Video Sunum Rehberi (Kopya Kağıdı)
+# örneközet.md — [DEVRE DIŞI / ESKİ SÜRÜM]
+
+> ⚠️ **Bu dosya artık kullanılmıyor.** Video sunumu için güncel, ödev şartnamesindeki tüm maddelere (A-G, kalite gereksinimleri, kanıt kontrol listesi, zaman planı, ekranda-ne-gösterileceği talimatları) birebir eşlenmiş konuşma metni için:
+>
+> ### 👉 [`video_sunum_konusma_metni.md`](./video_sunum_konusma_metni.md) dosyasına bakın.
+>
+> Aşağıdaki içerik sadece referans/arşiv amaçlı bırakılmıştır, video çekiminde bu dosyayı **kullanmayın**.
+
+---
+
+# örneközet.md — Video Sunum Rehberi (Kopya Kağıdı) — ESKİ SÜRÜM
 
 > **Proje:** XML-Based Library Management System (Mersin Üniversitesi — XML ve Web Servisleri)  
 > **Amaç:** Bu dosya, videoda kodu satır satır anlatırken önüne koyacağın senaryo. Teknik terimler İngilizce kalabilir; anlatım Türkçe + günlük dil karışık.  
