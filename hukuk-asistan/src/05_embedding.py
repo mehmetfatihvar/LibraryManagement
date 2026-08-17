@@ -1,18 +1,17 @@
 """
 05_embedding.py
 ===============
-Encode every chunk into a dense vector.
+Encode every chunk into a dense vector with sentence-transformers.
 
-    Input : data/processed/chunks.parquet
-    Output: data/processed/embeddings.npy      (float32, shape [N, dim])
-            data/processed/chunks_meta.parquet (metadata aligned row-for-row)
+    Input : data/processed/chunks.csv
+    Output: data/processed/embeddings.npy          (float32, [N, 384])
+            data/processed/embedding_metadata.json (model, dim, count, date)
 
-Two backends (see config.EMBEDDING_BACKEND):
-  * "sentence-transformers" — local, free, default.
-  * "openai"                — requires OPENAI_API_KEY.
+Model: sentence-transformers/all-MiniLM-L6-v2 (384-dim, fast).
+Batch size 32; uses GPU (CUDA) automatically when available.
 
-The two files are written in the same row order so `embeddings[i]` always
-corresponds to `chunks_meta.iloc[i]`.
+The .npy rows are written in the exact order of chunks.csv, so
+`embeddings[i]` corresponds to the row whose `chunk_id == i`.
 
 Run:
     python src/05_embedding.py
@@ -20,97 +19,75 @@ Run:
 
 from __future__ import annotations
 
+import datetime as dt
+import json
 import sys
+import time
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 import config
 
 
-# --------------------------------------------------------------------------- #
-# Encoders
-# --------------------------------------------------------------------------- #
-def _encode_sentence_transformers(texts: list[str]) -> np.ndarray:
-    from sentence_transformers import SentenceTransformer
+def main() -> None:
+    if not config.CHUNKS_CSV.exists():
+        sys.exit(
+            f"Chunks not found at {config.CHUNKS_CSV}.\n"
+            "Run 04_smart_chunking.py first."
+        )
 
-    print(f"Loading model: {config.ST_MODEL_NAME}")
-    model = SentenceTransformer(config.ST_MODEL_NAME)
-    vectors = model.encode(
+    try:
+        from sentence_transformers import SentenceTransformer
+        import torch
+    except ImportError:
+        sys.exit(
+            "sentence-transformers / torch not installed.\n"
+            "Install dependencies:  pip install -r requirements.txt"
+        )
+
+    config.ensure_dirs()
+    df = pd.read_csv(config.CHUNKS_CSV)
+    texts = df["text"].fillna("").astype(str).tolist()
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Model loaded    : {config.ST_MODEL_NAME}")
+    print(f"GPU available   : {'Yes (' + torch.cuda.get_device_name(0) + ')' if device == 'cuda' else 'No'}")
+    print(f"Total chunks    : {len(texts):,}")
+
+    model = SentenceTransformer(config.ST_MODEL_NAME, device=device)
+
+    t0 = time.perf_counter()
+    embeddings = model.encode(
         texts,
         batch_size=config.EMBEDDING_BATCH_SIZE,
         show_progress_bar=True,
         convert_to_numpy=True,
         normalize_embeddings=config.NORMALIZE_EMBEDDINGS,
-    )
-    return vectors.astype(np.float32)
+    ).astype(np.float32)
+    elapsed = time.perf_counter() - t0
 
+    np.save(config.EMBEDDINGS_NPY, embeddings)
 
-def _encode_openai(texts: list[str]) -> np.ndarray:
-    from openai import OpenAI
+    metadata = {
+        "total_chunks": int(embeddings.shape[0]),
+        "dimension": int(embeddings.shape[1]),
+        "model": config.ST_MODEL_NAME,
+        "normalized": config.NORMALIZE_EMBEDDINGS,
+        "date": dt.date.today().isoformat(),
+    }
+    with open(config.EMBEDDING_META_JSON, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=2)
 
-    client = OpenAI()  # reads OPENAI_API_KEY from the environment
-    model = config.OPENAI_EMBEDDING_MODEL
-    print(f"Using OpenAI model: {model}")
-
-    vectors: list[list[float]] = []
-    batch = config.EMBEDDING_BATCH_SIZE
-    for start in tqdm(range(0, len(texts), batch), desc="Embedding", unit="batch"):
-        chunk = texts[start:start + batch]
-        resp = client.embeddings.create(model=model, input=chunk)
-        vectors.extend([d.embedding for d in resp.data])
-
-    arr = np.asarray(vectors, dtype=np.float32)
-    if config.NORMALIZE_EMBEDDINGS:
-        norms = np.linalg.norm(arr, axis=1, keepdims=True)
-        arr = arr / np.clip(norms, 1e-8, None)
-    return arr
-
-
-def encode(texts: list[str]) -> np.ndarray:
-    """Dispatch to the configured embedding backend."""
-    if config.EMBEDDING_BACKEND == "openai":
-        return _encode_openai(texts)
-    return _encode_sentence_transformers(texts)
-
-
-# --------------------------------------------------------------------------- #
-# Main
-# --------------------------------------------------------------------------- #
-def main() -> None:
-    if not config.CHUNKS_PARQUET.exists():
-        sys.exit(
-            f"Chunks not found at {config.CHUNKS_PARQUET}.\n"
-            "Run 04_smart_chunking.py first."
-        )
-
-    config.ensure_dirs()
-    chunks = pd.read_parquet(config.CHUNKS_PARQUET)
-    texts = chunks["text"].fillna("").astype(str).tolist()
-    print(f"Encoding {len(texts):,} chunks with backend "
-          f"'{config.EMBEDDING_BACKEND}'…")
-
-    vectors = encode(texts)
-    if vectors.shape[0] != len(chunks):
-        sys.exit(
-            f"Row mismatch: {vectors.shape[0]} vectors vs {len(chunks)} chunks."
-        )
-
-    np.save(config.EMBEDDINGS_NPY, vectors)
-    # Persist the metadata in the exact same order as the vectors.
-    chunks.to_parquet(config.CHUNKS_META_PARQUET, index=False)
-
-    print("\n===== Embedding report =====")
-    print(f"Vectors        : {vectors.shape[0]:,}")
-    print(f"Dimensionality : {vectors.shape[1]}")
-    print(f"dtype          : {vectors.dtype}")
-    print(f"Normalized     : {config.NORMALIZE_EMBEDDINGS}")
+    # ---- Metrics --------------------------------------------------------- #
+    print("\n===== Embedding metrics =====")
+    print(f"Total chunks embedded : {embeddings.shape[0]:,}")
+    print(f"Embedding shape       : {embeddings.shape}")
+    print(f"dtype                 : {embeddings.dtype}")
+    print(f"Time taken            : {elapsed:.1f} seconds "
+          f"({embeddings.shape[0] / max(elapsed, 1e-6):.0f} chunks/s)")
     print(f"\n💾 Saved embeddings → {config.EMBEDDINGS_NPY}")
-    print(f"💾 Saved metadata   → {config.CHUNKS_META_PARQUET}")
-    print("\nNote: if EMBEDDING_DIM in config differs from "
-          f"{vectors.shape[1]}, set EMBEDDING_DIM={vectors.shape[1]} "
-          "before building the FAISS index.")
+    print(f"💾 Saved metadata   → {config.EMBEDDING_META_JSON}")
 
 
 if __name__ == "__main__":

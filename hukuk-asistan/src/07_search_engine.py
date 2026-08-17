@@ -1,64 +1,48 @@
 """
 07_search_engine.py
 ===================
-The retrieval core of the RAG system. Loads the FAISS index + chunk metadata
-and answers natural-language queries with the most relevant Yargıtay
-decisions.
+The retrieval core of the RAG system. Loads the FAISS index, the chunk mapping
+and the embedding model, then answers natural-language queries with the most
+relevant chunks, reranked by section importance.
 
 Exposes a reusable `SearchEngine` class (imported by 08_api_server.py and
-09_benchmark_test.py) and a small CLI for ad-hoc testing.
+09_benchmark_test.py) and a small CLI / self-test.
 
-    Inputs : data/processed/faiss.index
-             data/processed/chunks_meta.parquet
+    Inputs : data/processed/index.faiss
+             data/processed/chunk_mapping.pkl
 
-Run (interactive):
-    python src/07_search_engine.py "kira sözleşmesinin feshi"
+Reranking (section weights):
+    KARAR   (ruling)   x2.0
+    KANUN   (law)      x1.3
+    GEREKÇE (reasoning)x1.0
+    OYAL    (facts)    x0.8
+    final_score = similarity_score * section_weight
+
+Run:
+    python src/07_search_engine.py            # runs 5 built-in test queries
+    python src/07_search_engine.py "kira feshi"
 """
 
 from __future__ import annotations
 
+import pickle
 import sys
-from dataclasses import dataclass, field
 
 import numpy as np
-import pandas as pd
 
 import config
 
 
-@dataclass
-class ChunkHit:
-    chunk_id: str
-    decision_id: str
-    section: str
-    score: float
-    text: str
-    source: str
-    esasNo: str
-    kararNo: str
-    kararTarihi: str
-
-
-@dataclass
-class DecisionResult:
-    decision_id: str
-    score: float
-    source: str
-    esasNo: str
-    kararNo: str
-    kararTarihi: str
-    snippet: str
-    matched_sections: list[str] = field(default_factory=list)
-
-
 class SearchEngine:
-    """Load the index once, then serve many queries."""
+    """Load the index + model once, then serve many queries."""
 
-    def __init__(self) -> None:
+    def __init__(self, autoload: bool = True) -> None:
         self._index = None
-        self._meta: pd.DataFrame | None = None
-        self._encoder = None  # lazy: a callable[list[str]] -> np.ndarray
+        self._mapping: dict[int, dict] = {}
+        self._model = None
         self._loaded = False
+        if autoload:
+            self.load()
 
     # ------------------------------------------------------------------ #
     # Loading
@@ -68,150 +52,143 @@ class SearchEngine:
             return self
 
         import faiss
+        from sentence_transformers import SentenceTransformer
 
         if not config.FAISS_INDEX.exists():
             raise FileNotFoundError(
                 f"FAISS index missing at {config.FAISS_INDEX}. "
                 "Run 06_faiss_index.py first."
             )
-        if not config.CHUNKS_META_PARQUET.exists():
+        if not config.CHUNK_MAPPING_PKL.exists():
             raise FileNotFoundError(
-                f"Chunk metadata missing at {config.CHUNKS_META_PARQUET}. "
-                "Run 05_embedding.py first."
+                f"Chunk mapping missing at {config.CHUNK_MAPPING_PKL}. "
+                "Run 06_faiss_index.py first."
             )
 
         self._index = faiss.read_index(str(config.FAISS_INDEX))
-        self._meta = pd.read_parquet(config.CHUNKS_META_PARQUET).reset_index(drop=True)
-        if self._index.ntotal != len(self._meta):
-            raise RuntimeError(
-                f"Index/metadata mismatch: {self._index.ntotal} vectors "
-                f"vs {len(self._meta)} metadata rows."
-            )
-        self._encoder = self._build_encoder()
+        with open(config.CHUNK_MAPPING_PKL, "rb") as f:
+            self._mapping = pickle.load(f)
+        self._model = SentenceTransformer(config.ST_MODEL_NAME)
         self._loaded = True
         return self
 
-    def _build_encoder(self):
-        if config.EMBEDDING_BACKEND == "openai":
-            from openai import OpenAI
-
-            client = OpenAI()
-
-            def encode(texts: list[str]) -> np.ndarray:
-                resp = client.embeddings.create(
-                    model=config.OPENAI_EMBEDDING_MODEL, input=texts
-                )
-                arr = np.asarray([d.embedding for d in resp.data], dtype=np.float32)
-                return _normalize(arr)
-
-            return encode
-
-        from sentence_transformers import SentenceTransformer
-
-        model = SentenceTransformer(config.ST_MODEL_NAME)
-
-        def encode(texts: list[str]) -> np.ndarray:
-            arr = model.encode(
-                texts,
-                convert_to_numpy=True,
-                normalize_embeddings=config.NORMALIZE_EMBEDDINGS,
-            )
-            return arr.astype(np.float32)
-
-        return encode
-
     # ------------------------------------------------------------------ #
-    # Search
+    # Query embedding
     # ------------------------------------------------------------------ #
-    def search_chunks(self, query: str, candidates: int | None = None) -> list[ChunkHit]:
-        """Return the top-scoring individual chunks for a query."""
+    def embed_query(self, query: str) -> np.ndarray:
+        """Return the 384-dim (normalised) embedding for `query`."""
         if not self._loaded:
             self.load()
-        candidates = candidates or config.SEARCH_CANDIDATES
+        vec = self._model.encode(
+            [query],
+            convert_to_numpy=True,
+            normalize_embeddings=config.NORMALIZE_EMBEDDINGS,
+        ).astype("float32")
+        return vec
 
-        qvec = self._encoder([query]).astype(np.float32)
-        scores, idxs = self._index.search(qvec, candidates)
+    # ------------------------------------------------------------------ #
+    # Search + rerank
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _l2_to_cosine(sq_dist: float) -> float:
+        """
+        Convert FAISS squared-L2 distance to cosine similarity.
 
-        hits: list[ChunkHit] = []
-        for score, idx in zip(scores[0], idxs[0]):
+        For unit vectors: ||a-b||^2 = 2 - 2cos(a, b)  ->  cos = 1 - d/2.
+        Clamped to [0, 1].
+        """
+        return max(0.0, min(1.0, 1.0 - sq_dist / 2.0))
+
+    def rerank(self, results: list[dict]) -> list[dict]:
+        """Apply section weights and sort by final score (descending)."""
+        for r in results:
+            weight = config.section_weight(r["section"])
+            r["section_weight"] = weight
+            r["final_score"] = round(r["similarity_score"] * weight, 4)
+        results.sort(key=lambda r: r["final_score"], reverse=True)
+        for rank, r in enumerate(results, 1):
+            r["rank"] = rank
+        return results
+
+    def search(self, query: str, top_k: int | None = None) -> list[dict]:
+        """
+        Embed the query, retrieve candidates from FAISS, rerank by section
+        weight and return the top `top_k` results.
+        """
+        if not self._loaded:
+            self.load()
+        top_k = top_k or config.TOP_K
+        candidates = max(config.SEARCH_CANDIDATES, top_k)
+
+        qvec = self.embed_query(query)
+        distances, indices = self._index.search(qvec, candidates)
+
+        results: list[dict] = []
+        for dist, idx in zip(distances[0], indices[0]):
             if idx < 0:
                 continue
-            if score < config.SIMILARITY_THRESHOLD:
+            info = self._mapping.get(int(idx))
+            if info is None:
                 continue
-            row = self._meta.iloc[int(idx)]
-            hits.append(
-                ChunkHit(
-                    chunk_id=str(row.get("chunk_id", "")),
-                    decision_id=str(row.get("decision_id", "")),
-                    section=str(row.get("section", "")),
-                    score=float(score),
-                    text=str(row.get("text", "")),
-                    source=str(row.get("source", "")),
-                    esasNo=str(row.get("esasNo", "")),
-                    kararNo=str(row.get("kararNo", "")),
-                    kararTarihi=str(row.get("kararTarihi", "")),
-                )
+            results.append(
+                {
+                    "chunk_id": int(idx),
+                    "text": info["text"],
+                    "section": info["section"],
+                    "original_doc_id": info.get("original_doc_id", ""),
+                    "similarity_score": round(self._l2_to_cosine(float(dist)), 4),
+                }
             )
-        return hits
 
-    def search(self, query: str, top_k: int | None = None) -> list[DecisionResult]:
-        """
-        Return the top-`k` *decisions* for a query.
-
-        Chunk hits are grouped by their parent decision so the caller gets
-        distinct decisions rather than several chunks of the same one. A
-        decision's score is the best (max) score among its chunks.
-        """
-        top_k = top_k or config.TOP_K
-        hits = self.search_chunks(query)
-
-        grouped: dict[str, DecisionResult] = {}
-        for h in hits:
-            existing = grouped.get(h.decision_id)
-            if existing is None:
-                grouped[h.decision_id] = DecisionResult(
-                    decision_id=h.decision_id,
-                    score=h.score,
-                    source=h.source,
-                    esasNo=h.esasNo,
-                    kararNo=h.kararNo,
-                    kararTarihi=h.kararTarihi,
-                    snippet=h.text[:400],
-                    matched_sections=[h.section],
-                )
-            else:
-                if h.score > existing.score:
-                    existing.score = h.score
-                    existing.snippet = h.text[:400]
-                if h.section not in existing.matched_sections:
-                    existing.matched_sections.append(h.section)
-
-        results = sorted(grouped.values(), key=lambda r: r.score, reverse=True)
+        results = self.rerank(results)
         return results[:top_k]
 
+    # ------------------------------------------------------------------ #
+    # Stats (for the API /stats endpoint)
+    # ------------------------------------------------------------------ #
+    def get_stats(self) -> dict:
+        if not self._loaded:
+            self.load()
+        return {
+            "total_chunks": int(self._index.ntotal),
+            "model": config.ST_MODEL_NAME,
+            "vector_dim": config.EMBEDDING_DIM,
+        }
 
-def _normalize(arr: np.ndarray) -> np.ndarray:
-    norms = np.linalg.norm(arr, axis=1, keepdims=True)
-    return arr / np.clip(norms, 1e-8, None)
+
+# --------------------------------------------------------------------------- #
+# CLI / self-test
+# --------------------------------------------------------------------------- #
+_TEST_QUERIES = [
+    "elektrik kaçağında ceza",
+    "kira sözleşmesinin feshi ve tahliye",
+    "işçinin kıdem tazminatı hakkı",
+    "boşanmada manevi tazminat",
+    "taşınmaz satış vaadi sözleşmesi",
+]
+
+
+def _print_results(query: str, results: list[dict], limit: int = 3) -> None:
+    print(f"\nQuery: {query}\n" + "=" * 60)
+    if not results:
+        print("  (no results)")
+        return
+    for r in results[:limit]:
+        print(f"  #{r['rank']}  chunk_id={r['chunk_id']}  [{r['section']}]")
+        print(f"      similarity={r['similarity_score']:.3f}  "
+              f"weight={r['section_weight']}  final={r['final_score']:.3f}")
+        print(f"      {r['text'][:120]}…")
 
 
 def _cli() -> None:
-    if len(sys.argv) < 2:
-        print('Usage: python src/07_search_engine.py "your legal query"')
-        sys.exit(1)
-    query = " ".join(sys.argv[1:])
-    engine = SearchEngine().load()
-    results = engine.search(query)
-
-    print(f"\nQuery: {query}\n" + "=" * 60)
-    if not results:
-        print("No results above the similarity threshold.")
-        return
-    for i, r in enumerate(results, 1):
-        print(f"\n#{i}  score={r.score:.3f}  [{r.source}] "
-              f"Esas {r.esasNo} / Karar {r.kararNo}  ({r.kararTarihi})")
-        print(f"    sections: {', '.join(r.matched_sections)}")
-        print(f"    {r.snippet}…")
+    engine = SearchEngine()
+    if len(sys.argv) >= 2:
+        query = " ".join(sys.argv[1:])
+        _print_results(query, engine.search(query))
+    else:
+        print("Running 5 built-in test queries…")
+        for q in _TEST_QUERIES:
+            _print_results(q, engine.search(q))
 
 
 if __name__ == "__main__":

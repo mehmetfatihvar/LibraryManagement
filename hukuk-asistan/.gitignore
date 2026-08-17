@@ -14,9 +14,7 @@ data/raw/*.csv
 data/processed/*.csv
 data/processed/*.parquet
 data/processed/*.npy
+data/processed/*.faiss
 data/processed/*.index
+data/processed/*.pkl
 data/processed/*.json
-
-# Keep directory structure and test queries
-!data/queries/test_queries.json
-!data/.gitkeep

@@ -41,12 +41,14 @@ QUERIES_DIR: Path = DATA_DIR / "queries"
 # Pipeline artifacts (files produced by each step)
 RAW_CSV: Path = RAW_DIR / "decisions_100k.csv"
 CLEAN_CSV: Path = PROCESSED_DIR / "decisions_clean.csv"
-CHUNKS_PARQUET: Path = PROCESSED_DIR / "chunks.parquet"
+CHUNKS_CSV: Path = PROCESSED_DIR / "chunks.csv"
 EMBEDDINGS_NPY: Path = PROCESSED_DIR / "embeddings.npy"
-CHUNKS_META_PARQUET: Path = PROCESSED_DIR / "chunks_meta.parquet"
-FAISS_INDEX: Path = PROCESSED_DIR / "faiss.index"
+EMBEDDING_META_JSON: Path = PROCESSED_DIR / "embedding_metadata.json"
+FAISS_INDEX: Path = PROCESSED_DIR / "index.faiss"
+CHUNK_MAPPING_PKL: Path = PROCESSED_DIR / "chunk_mapping.pkl"
+BENCHMARK_QUERIES_TXT: Path = QUERIES_DIR / "benchmark_50.txt"
+BENCHMARK_RESULTS_JSON: Path = PROCESSED_DIR / "benchmark_results.json"
 TEST_QUERIES_JSON: Path = QUERIES_DIR / "test_queries.json"
-BENCHMARK_REPORT: Path = PROCESSED_DIR / "benchmark_report.json"
 
 
 # --------------------------------------------------------------------------- #
@@ -76,57 +78,61 @@ EXPECTED_COLUMNS: list[str] = [
 # --------------------------------------------------------------------------- #
 # Embedding model
 # --------------------------------------------------------------------------- #
-# Two backends are supported:
-#   * "sentence-transformers" (default, local, free)
-#   * "openai"                (requires OPENAI_API_KEY)
-EMBEDDING_BACKEND: str = os.getenv("EMBEDDING_BACKEND", "sentence-transformers")
-
-# Multilingual model with strong Turkish support and a 384-dim output.
-# A good Turkish-specific alternative:
-#   "emrecan/bert-base-turkish-cased-mean-nli-stsb-tr"
-ST_MODEL_NAME: str = os.getenv(
-    "ST_MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-)
-OPENAI_EMBEDDING_MODEL: str = os.getenv(
-    "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
-)
-
-# Dimensionality of the vectors produced by the active backend. This is
-# resolved lazily at runtime (05_embedding.py) but we keep sensible defaults
-# so 06/07 can build/load the index without loading the model.
-EMBEDDING_DIM: int = int(
-    os.getenv(
-        "EMBEDDING_DIM",
-        "384" if EMBEDDING_BACKEND == "sentence-transformers" else "1536",
-    )
-)
-
-# Batch size used when encoding chunks.
-EMBEDDING_BATCH_SIZE: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "256"))
-# Normalize embeddings so inner-product == cosine similarity.
+# NOTE: the project spec pins all-MiniLM-L6-v2 (384-dim, fast). It is an
+# English-centric model; for higher Turkish quality swap ST_MODEL_NAME for a
+# multilingual model such as
+#   "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# (also 384-dim, so no other change is needed).
+ST_MODEL_NAME: str = os.getenv("ST_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
+EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "384"))
+EMBEDDING_BATCH_SIZE: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
+# Normalize embeddings so L2 distance is monotonic with cosine similarity and
+# can be converted to a cosine score (see 07_search_engine.py).
 NORMALIZE_EMBEDDINGS: bool = os.getenv("NORMALIZE_EMBEDDINGS", "1") == "1"
 
 
 # --------------------------------------------------------------------------- #
 # Chunking
 # --------------------------------------------------------------------------- #
-# Chunk size / overlap are measured in characters (robust and tokenizer-free).
-CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1200"))
-CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "200"))
-# Discard chunks shorter than this after cleaning.
-MIN_CHUNK_CHARS: int = int(os.getenv("MIN_CHUNK_CHARS", "120"))
+# Chunk size / overlap are measured in characters.
+CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
+CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "100"))
 # Minimum length of a raw decision to keep during preprocessing.
 MIN_TEXT_CHARS: int = int(os.getenv("MIN_TEXT_CHARS", "100"))
+
+# Canonical decision sections.
+SECTION_OYAL = "OYAL"        # facts (olaylar)
+SECTION_KANUN = "KANUN"      # legal references
+SECTION_KARAR = "KARAR"      # ruling / decision
+SECTION_GEREKCE = "GEREKÇE"  # reasoning
+SECTION_GENERAL = "GENEL"    # fallback when no marker is found
+
+# Sections kept ATOMIC (never split): legal references and the ruling lose
+# meaning if fragmented.
+ATOMIC_SECTIONS: set[str] = {SECTION_KANUN, SECTION_KARAR}
 
 
 # --------------------------------------------------------------------------- #
 # Search
 # --------------------------------------------------------------------------- #
 TOP_K: int = int(os.getenv("TOP_K", "5"))
-# Candidates retrieved from FAISS before de-duplication / grouping by decision.
-SEARCH_CANDIDATES: int = int(os.getenv("SEARCH_CANDIDATES", "50"))
-# Cosine-similarity floor; results below this are dropped.
-SIMILARITY_THRESHOLD: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.30"))
+# Candidates pulled from FAISS before reranking (larger than TOP_K so the
+# section-weight reranker has room to reorder).
+SEARCH_CANDIDATES: int = int(os.getenv("SEARCH_CANDIDATES", "30"))
+
+# Reranking weights applied to the cosine similarity per section.
+SECTION_WEIGHTS: dict[str, float] = {
+    SECTION_KARAR: 2.0,
+    SECTION_KANUN: 1.3,
+    SECTION_GEREKCE: 1.0,
+    SECTION_OYAL: 0.8,
+    SECTION_GENERAL: 1.0,
+}
+DEFAULT_SECTION_WEIGHT: float = 1.0
+
+# Benchmark: a result counts as "relevant" if its cosine similarity is at
+# least this, and (when keywords are provided) it contains an expected keyword.
+BENCHMARK_REL_THRESHOLD: float = float(os.getenv("BENCHMARK_REL_THRESHOLD", "0.35"))
 
 
 # --------------------------------------------------------------------------- #
@@ -139,6 +145,11 @@ API_PORT: int = int(os.getenv("API_PORT", "8000"))
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
+def section_weight(section: str) -> float:
+    """Return the reranking weight for a section label."""
+    return SECTION_WEIGHTS.get(section, DEFAULT_SECTION_WEIGHT)
+
+
 def ensure_dirs() -> None:
     """Create every data directory the pipeline needs (idempotent)."""
     for d in (DATA_DIR, RAW_DIR, PROCESSED_DIR, QUERIES_DIR):
@@ -152,13 +163,13 @@ def summary() -> str:
         f"BASE_DIR             : {BASE_DIR}",
         f"DATASET_NAME         : {DATASET_NAME}",
         f"SAMPLE_SIZE          : {SAMPLE_SIZE:,}",
-        f"EMBEDDING_BACKEND    : {EMBEDDING_BACKEND}",
-        f"EMBEDDING_MODEL      : "
-        f"{ST_MODEL_NAME if EMBEDDING_BACKEND == 'sentence-transformers' else OPENAI_EMBEDDING_MODEL}",
+        f"EMBEDDING_MODEL      : {ST_MODEL_NAME}",
         f"EMBEDDING_DIM        : {EMBEDDING_DIM}",
+        f"EMBEDDING_BATCH_SIZE : {EMBEDDING_BATCH_SIZE}",
         f"CHUNK_SIZE/OVERLAP   : {CHUNK_SIZE} / {CHUNK_OVERLAP}",
+        f"ATOMIC_SECTIONS      : {sorted(ATOMIC_SECTIONS)}",
+        f"SECTION_WEIGHTS      : {SECTION_WEIGHTS}",
         f"TOP_K                : {TOP_K}",
-        f"SIMILARITY_THRESHOLD : {SIMILARITY_THRESHOLD}",
         f"API                  : {API_HOST}:{API_PORT}",
         "==========================================",
     ]

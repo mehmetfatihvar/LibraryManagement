@@ -1,15 +1,16 @@
 """
 06_faiss_index.py
 =================
-Build a FAISS vector index from the saved embeddings.
+Build a searchable FAISS index from the saved embeddings and a chunk mapping
+so search results can be resolved back to their text and section.
 
     Input : data/processed/embeddings.npy
-    Output: data/processed/faiss.index
+            data/processed/chunks.csv
+    Output: data/processed/index.faiss        (IndexFlatL2)
+            data/processed/chunk_mapping.pkl   (chunk_id -> {text, section, doc_id})
 
-Because embeddings are L2-normalised in step 05, an inner-product index
-(IndexFlatIP) yields cosine similarity directly. For large corpora we wrap it
-in an IVF index for faster approximate search; for small corpora we keep the
-exact flat index.
+We use IndexFlatL2 (exact, L2 distance). Embeddings are unit-normalised in
+step 05, so L2 distance is monotonic with cosine similarity.
 
 Run:
     python src/06_faiss_index.py
@@ -17,38 +18,26 @@ Run:
 
 from __future__ import annotations
 
+import pickle
 import sys
 
 import numpy as np
+import pandas as pd
 
 import config
 
-# Above this many vectors we switch from exact (flat) to approximate (IVF)
-# search to keep query latency low.
-_IVF_THRESHOLD = 200_000
 
-
-def build_index(vectors: np.ndarray):
-    import faiss
-
-    n, dim = vectors.shape
-    vectors = np.ascontiguousarray(vectors.astype(np.float32))
-
-    if n < _IVF_THRESHOLD:
-        print(f"Building exact IndexFlatIP ({n:,} vectors, dim={dim})…")
-        index = faiss.IndexFlatIP(dim)
-        index.add(vectors)
-        return index
-
-    # Approximate IVF index for large corpora.
-    nlist = min(4096, max(64, int(np.sqrt(n))))
-    print(f"Building IndexIVFFlat (nlist={nlist}, {n:,} vectors, dim={dim})…")
-    quantizer = faiss.IndexFlatIP(dim)
-    index = faiss.IndexIVFFlat(quantizer, dim, nlist, faiss.METRIC_INNER_PRODUCT)
-    index.train(vectors)
-    index.add(vectors)
-    index.nprobe = min(32, nlist)
-    return index
+def build_mapping(df: pd.DataFrame) -> dict[int, dict]:
+    """chunk_id -> {text, section, original_doc_id, is_atomic}."""
+    mapping: dict[int, dict] = {}
+    for _, r in df.iterrows():
+        mapping[int(r["chunk_id"])] = {
+            "text": str(r["text"]),
+            "section": str(r["section"]),
+            "original_doc_id": str(r["original_doc_id"]),
+            "is_atomic": bool(r["is_atomic"]),
+        }
+    return mapping
 
 
 def main() -> None:
@@ -57,6 +46,11 @@ def main() -> None:
             f"Embeddings not found at {config.EMBEDDINGS_NPY}.\n"
             "Run 05_embedding.py first."
         )
+    if not config.CHUNKS_CSV.exists():
+        sys.exit(
+            f"Chunks not found at {config.CHUNKS_CSV}.\n"
+            "Run 04_smart_chunking.py first."
+        )
 
     try:
         import faiss
@@ -64,16 +58,47 @@ def main() -> None:
         sys.exit("faiss is not installed. Run: pip install faiss-cpu")
 
     config.ensure_dirs()
-    vectors = np.load(config.EMBEDDINGS_NPY)
-    index = build_index(vectors)
+    embeddings = np.load(config.EMBEDDINGS_NPY).astype("float32")
+    df = pd.read_csv(config.CHUNKS_CSV)
+
+    if len(embeddings) != len(df):
+        sys.exit(
+            f"Row mismatch: {len(embeddings)} embeddings vs {len(df)} chunks. "
+            "Re-run 05_embedding.py after chunking."
+        )
+
+    # ---- Build index ----------------------------------------------------- #
+    dim = embeddings.shape[1]
+    index = faiss.IndexFlatL2(dim)
+    index.add(embeddings)
 
     faiss.write_index(index, str(config.FAISS_INDEX))
 
-    print("\n===== FAISS index report =====")
-    print(f"Vectors indexed : {index.ntotal:,}")
-    print(f"Dimensionality  : {vectors.shape[1]}")
-    print(f"Metric          : inner product (cosine on normalised vectors)")
-    print(f"\n💾 Saved index → {config.FAISS_INDEX}")
+    # ---- Build & save chunk mapping ------------------------------------- #
+    mapping = build_mapping(df)
+    with open(config.CHUNK_MAPPING_PKL, "wb") as f:
+        pickle.dump(mapping, f)
+
+    size_mb = config.FAISS_INDEX.stat().st_size / 1024**2
+
+    # ---- Metrics --------------------------------------------------------- #
+    print("\n===== FAISS index metrics =====")
+    print(f"Index created  : {index.ntotal:,} vectors")
+    print(f"Dimensionality : {dim}")
+    print(f"Index size     : {size_mb:.2f} MB")
+    print(f"💾 Saved index   → {config.FAISS_INDEX}")
+    print(f"💾 Saved mapping → {config.CHUNK_MAPPING_PKL}")
+
+    # ---- Sample search test --------------------------------------------- #
+    print("\n----- Sample search test (query = first chunk) -----")
+    query = embeddings[:1]
+    distances, indices = index.search(query, 5)
+    print("Top-5 nearest to chunk 0:")
+    for rank, (d, idx) in enumerate(zip(distances[0], indices[0]), 1):
+        info = mapping.get(int(idx), {})
+        snippet = info.get("text", "")[:60].replace("\n", " ")
+        print(f"  #{rank}  id={idx}  L2={d:.4f}  [{info.get('section', '?')}]  {snippet}…")
+    print("Sample search test: OK")
 
 
 if __name__ == "__main__":

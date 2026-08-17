@@ -26,10 +26,10 @@ python src/05_embedding.py
 echo "==> [6/9] Build FAISS index"
 python src/06_faiss_index.py
 
-echo "==> [7/9] Search smoke test"
-python src/07_search_engine.py "kira sözleşmesinin feshi ve tahliye"
+echo "==> [7/9] Search smoke test (5 built-in queries)"
+python src/07_search_engine.py
 
-echo "==> [9/9] Benchmark"
+echo "==> [9/9] Benchmark (50 queries)"
 python src/09_benchmark_test.py
 
 echo

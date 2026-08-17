@@ -1,24 +1,24 @@
 """
 04_smart_chunking.py
 ====================
-Split each cleaned decision into meaningful, overlapping chunks.
+Split each cleaned decision into meaningful chunks, respecting the legal
+structure of Yargıtay decisions.
 
     Input : data/processed/decisions_clean.csv
-    Output: data/processed/chunks.parquet
+    Output: data/processed/chunks.csv
+            columns: chunk_id, text, section, original_doc_id, length, is_atomic
 
-Strategy — "smart" chunking:
-  1. Structure detection: Yargıtay decisions are loosely organised into
-     sections such as DAVA (claim), CEVAP (answer), GEREKÇE (reasoning),
-     KARAR / HÜKÜM / SONUÇ (verdict). We split the text on these section
-     markers first, so a chunk never blends the claim with the verdict.
-  2. Within each section, if the text is longer than CHUNK_SIZE we split it
-     further on sentence boundaries with CHUNK_OVERLAP characters of overlap,
-     preserving context across chunk borders.
-  3. Chunks shorter than MIN_CHUNK_CHARS are discarded.
+Sections and chunking policy
+----------------------------
+    OYAL    (facts / olaylar)       -> SPLIT on sentence boundaries
+    KANUN   (legal references)      -> KEEP ATOMIC (never split)
+    KARAR   (ruling / decision)     -> KEEP ATOMIC (never split)
+    GEREKÇE (reasoning)             -> SPLIT on sentence boundaries
 
-Each output row carries the parent decision's metadata plus a `chunk_id`,
-`section` label and `chunk_index`, so search results can point back to the
-exact decision.
+Legal references (KANUN) and the ruling (KARAR) lose their meaning when
+fragmented, so they are stored as a single chunk regardless of length. The
+narrative sections (OYAL, GEREKÇE) are split into <= CHUNK_SIZE character
+chunks with CHUNK_OVERLAP characters of overlap to preserve context.
 
 Run:
     python src/04_smart_chunking.py
@@ -34,73 +34,95 @@ from tqdm import tqdm
 
 import config
 
+# --------------------------------------------------------------------------- #
+# Section detection
+# --------------------------------------------------------------------------- #
+# Each canonical section maps to the header variants that introduce it in the
+# corpus. Matching is CASE-SENSITIVE (uppercase): real headers are upper case,
+# while the same words in running text are lower case, so this avoids splitting
+# mid-sentence on a common word like "karar".
+_SECTION_VARIANTS: dict[str, list[str]] = {
+    config.SECTION_OYAL: ["OLAYLAR", "OLAY", "OYAL", "MADDİ OLAY", "MADDI OLAY", "VAKIALAR"],
+    config.SECTION_KANUN: [
+        "KANUN", "İLGİLİ KANUN", "ILGILI KANUN", "YASAL DAYANAK",
+        "İLGİLİ MEVZUAT", "ILGILI MEVZUAT", "KANUN MADDESİ", "MEVZUAT",
+    ],
+    config.SECTION_KARAR: ["KARAR", "HÜKÜM", "HUKUM", "SONUÇ", "SONUC", "HÜKÜM VE SONUÇ"],
+    config.SECTION_GEREKCE: ["GEREKÇE", "GEREKCE", "GEREKÇESİ", "DEĞERLENDİRME", "DEGERLENDIRME", "İNCELEME"],
+}
 
-# Section markers frequently found in Turkish court decisions. The regex keeps
-# the marker with the section that follows it (split *before* each marker).
-#
-# Matching is intentionally CASE-SENSITIVE (uppercase only): in these decisions
-# real section headers are written in upper case (e.g. "GEREKÇE:"), whereas the
-# same words in running text are lower case ("...karar verilmiştir"). Requiring
-# upper case avoids spuriously splitting mid-sentence on common words.
-_SECTION_MARKERS = [
-    "DAVA",
-    "CEVAP",
-    "İLK DERECE MAHKEMESİ",
-    "İSTİNAF",
-    "TEMYİZ",
-    "GEREKÇE",
-    "DELİLLER",
-    "DEĞERLENDİRME",
-    "SONUÇ",
-    "HÜKÜM",
-    "KARAR",
-]
+# Map every variant back to its canonical section, longest-first so that
+# "HÜKÜM VE SONUÇ" is preferred over "HÜKÜM".
+_VARIANT_TO_SECTION: dict[str, str] = {}
+for _canon, _variants in _SECTION_VARIANTS.items():
+    for _v in _variants:
+        _VARIANT_TO_SECTION[_v] = _canon
+_ALL_VARIANTS = sorted(_VARIANT_TO_SECTION, key=len, reverse=True)
 
-_SECTION_RE = re.compile(
-    r"(?=(?:" + "|".join(re.escape(m) for m in _SECTION_MARKERS) + r")\s*[:\-]?\s)"
+# A marker = one of the variants followed by an optional ":" / "-" and a space.
+# The lookahead keeps the marker attached to the section that follows it.
+_MARKER_RE = re.compile(
+    r"(?=\b(?:" + "|".join(re.escape(v) for v in _ALL_VARIANTS) + r")\s*[:\-]?\s)"
 )
 
-# Sentence splitter tuned for Turkish: split after . ! ? … followed by a space.
 _SENTENCE_RE = re.compile(r"(?<=[.!?…])\s+")
 
 
-def detect_sections(text: str) -> list[tuple[str, str]]:
-    """
-    Split `text` into (section_label, section_text) pairs.
+def _canonical_for(fragment: str) -> str | None:
+    """Return the canonical section if `fragment` starts with a known marker."""
+    head = fragment[:40].upper()
+    for variant in _ALL_VARIANTS:
+        if head.startswith(variant):
+            return _VARIANT_TO_SECTION[variant]
+    return None
 
-    If no known markers are present, the whole decision is returned as a
-    single "GENEL" (general) section.
-    """
-    parts = [p.strip() for p in _SECTION_RE.split(text) if p and p.strip()]
-    if len(parts) <= 1:
-        return [("GENEL", text.strip())]
 
-    sections: list[tuple[str, str]] = []
-    for part in parts:
-        # Label = the leading marker word, if the part starts with one.
-        label = "GENEL"
-        upper = part[:40].upper()
-        for marker in _SECTION_MARKERS:
-            if upper.startswith(marker):
-                label = marker
-                break
-        sections.append((label, part))
+def extract_sections(text: str) -> dict[str, str]:
+    """
+    Split a decision into a dict {section: text}, in order of appearance.
+
+    Handles header variations (OYAL:, OYAL , OLAYLAR, ...). If a section
+    appears more than once its parts are concatenated. When no known marker is
+    present the whole text is returned under the GENEL (general) section.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return {}
+
+    fragments = [f.strip() for f in _MARKER_RE.split(text) if f and f.strip()]
+
+    sections: dict[str, str] = {}
+    matched_any = False
+    for frag in fragments:
+        canon = _canonical_for(frag)
+        if canon is None:
+            # Leading text before the first recognised header -> facts (OYAL).
+            canon = config.SECTION_OYAL if not sections else config.SECTION_GENERAL
+        else:
+            matched_any = True
+        sections[canon] = (sections.get(canon, "") + " " + frag).strip()
+
+    if not matched_any:
+        return {config.SECTION_GENERAL: text.strip()}
     return sections
 
 
-def _split_with_overlap(text: str, size: int, overlap: int) -> list[str]:
+# --------------------------------------------------------------------------- #
+# Chunking
+# --------------------------------------------------------------------------- #
+def chunk_section(text: str, size: int, overlap: int) -> list[str]:
     """
-    Split `text` into <= `size`-char pieces on sentence boundaries, carrying
-    `overlap` characters of context from the previous piece into the next.
+    Split `text` into <= `size`-char chunks on sentence boundaries, carrying
+    `overlap` characters of context from the previous chunk into the next.
     """
+    text = text.strip()
     if len(text) <= size:
-        return [text]
+        return [text] if text else []
 
     sentences = _SENTENCE_RE.split(text)
     chunks: list[str] = []
     current = ""
-
     for sent in sentences:
+        sent = sent.strip()
         if not sent:
             continue
         if len(current) + len(sent) + 1 <= size:
@@ -108,7 +130,6 @@ def _split_with_overlap(text: str, size: int, overlap: int) -> list[str]:
         else:
             if current:
                 chunks.append(current)
-            # Start the next chunk with the tail of the previous one (overlap).
             tail = current[-overlap:] if overlap and current else ""
             current = f"{tail} {sent}".strip()
             # A single sentence longer than `size` is hard-split.
@@ -120,21 +141,30 @@ def _split_with_overlap(text: str, size: int, overlap: int) -> list[str]:
     return chunks
 
 
-def chunk_decision(text: str) -> list[tuple[str, int, str]]:
-    """Return a list of (section_label, index_within_decision, chunk_text)."""
-    results: list[tuple[str, int, str]] = []
-    idx = 0
-    for label, section_text in detect_sections(text):
-        for piece in _split_with_overlap(
-            section_text, config.CHUNK_SIZE, config.CHUNK_OVERLAP
-        ):
-            piece = piece.strip()
-            if len(piece) >= config.MIN_CHUNK_CHARS:
-                results.append((label, idx, piece))
-                idx += 1
-    return results
+def chunk_decision(text: str) -> list[tuple[str, str, bool]]:
+    """
+    Chunk one decision.
+
+    Returns a list of (section, chunk_text, is_atomic) tuples in document
+    order. Atomic sections (KANUN, KARAR) yield exactly one chunk.
+    """
+    out: list[tuple[str, str, bool]] = []
+    for section, sec_text in extract_sections(text).items():
+        sec_text = sec_text.strip()
+        if not sec_text:
+            continue
+        if section in config.ATOMIC_SECTIONS:
+            out.append((section, sec_text, True))
+        else:
+            for piece in chunk_section(sec_text, config.CHUNK_SIZE, config.CHUNK_OVERLAP):
+                if piece.strip():
+                    out.append((section, piece.strip(), False))
+    return out
 
 
+# --------------------------------------------------------------------------- #
+# Main
+# --------------------------------------------------------------------------- #
 def main() -> None:
     if not config.CLEAN_CSV.exists():
         sys.exit(
@@ -147,38 +177,53 @@ def main() -> None:
     df["text"] = df["text"].fillna("").astype(str)
 
     rows: list[dict] = []
+    chunk_id = 0
     for _, r in tqdm(df.iterrows(), total=len(df), desc="Chunking", unit="doc"):
-        decision_id = r.get("id", "")
-        for label, idx, piece in chunk_decision(r["text"]):
+        doc_id = r.get("id", "")
+        for section, piece, is_atomic in chunk_decision(r["text"]):
             rows.append(
                 {
-                    "chunk_id": f"{decision_id}__{idx}",
-                    "decision_id": decision_id,
-                    "section": label,
-                    "chunk_index": idx,
+                    "chunk_id": chunk_id,
                     "text": piece,
-                    "source": r.get("source", ""),
-                    "esasNo": r.get("esasNo", ""),
-                    "kararNo": r.get("kararNo", ""),
-                    "kararTarihi": r.get("kararTarihi", ""),
+                    "section": section,
+                    "original_doc_id": doc_id,
+                    "length": len(piece),
+                    "is_atomic": is_atomic,
                 }
             )
+            chunk_id += 1
 
-    chunks = pd.DataFrame(rows)
-    chunks.to_parquet(config.CHUNKS_PARQUET, index=False)
+    chunks = pd.DataFrame(
+        rows,
+        columns=["chunk_id", "text", "section", "original_doc_id", "length", "is_atomic"],
+    )
+    chunks.to_csv(config.CHUNKS_CSV, index=False)
 
-    # ---- Report ---------------------------------------------------------- #
-    per_doc = chunks.groupby("decision_id").size()
-    print("\n===== Chunking report =====")
-    print(f"Decisions in   : {len(df):,}")
-    print(f"Chunks out     : {len(chunks):,}")
-    print(f"Chunks / doc   : mean {per_doc.mean():.2f}, "
-          f"median {per_doc.median():.0f}, max {per_doc.max()}")
-    print(f"Chunk length   : mean {chunks['text'].str.len().mean():.0f} chars")
+    # ---- Metrics --------------------------------------------------------- #
+    n_docs = len(df)
+    n_chunks = len(chunks)
+    print("\n===== Chunking metrics =====")
+    print(f"Total decisions        : {n_docs:,}")
+    print(f"Total chunks           : {n_chunks:,}")
+    print(f"Avg chunks per decision: {n_chunks / max(n_docs, 1):.2f}")
+
     print("\nSection distribution:")
-    for sec, cnt in chunks["section"].value_counts().head(12).items():
-        print(f"  {sec:<24}: {cnt:,}")
-    print(f"\n💾 Saved chunks → {config.CHUNKS_PARQUET}")
+    for sec, cnt in chunks["section"].value_counts().items():
+        print(f"  {sec:<10}: {cnt:>8,}  ({100 * cnt / max(n_chunks, 1):5.1f}%)")
+
+    print("\nChunk length (characters):")
+    lengths = chunks["length"]
+    if n_chunks:
+        print(f"  min  : {lengths.min():,}")
+        print(f"  max  : {lengths.max():,}")
+        print(f"  mean : {lengths.mean():,.1f}")
+        print(f"  std  : {lengths.std():,.1f}")
+
+    atomic = int(chunks["is_atomic"].sum())
+    print(f"\nAtomic vs split ratio  : {atomic:,} atomic / "
+          f"{n_chunks - atomic:,} split "
+          f"({100 * atomic / max(n_chunks, 1):.1f}% atomic)")
+    print(f"\n💾 Saved chunks → {config.CHUNKS_CSV}")
 
 
 if __name__ == "__main__":
