@@ -6,7 +6,7 @@ the most relevant decision chunks using semantic (vector) search with
 section-aware reranking.
 
 - **Dataset:** [`erdem-erdem/Turkish-Law-Documents-700k-clustered`](https://huggingface.co/datasets/erdem-erdem/Turkish-Law-Documents-700k-clustered) — 702,296 decisions (1997–2025). The pipeline samples 100K by default.
-- **Stack:** Hugging Face `datasets` → section-aware chunking → `all-MiniLM-L6-v2` embeddings → FAISS `IndexFlatL2` → section-weighted reranking → FastAPI → 50-query benchmark.
+- **Stack:** Hugging Face `datasets` → section-aware chunking → `paraphrase-multilingual-MiniLM-L12-v2` (Turkish-capable) embeddings → FAISS `IndexFlatL2` → section-weighted reranking → FastAPI → 50-query benchmark.
 
 ---
 
@@ -135,7 +135,7 @@ All knobs live in `src/config.py`, overridable via env / `.env`:
 | Variable | Default | Meaning |
 |---|---|---|
 | `SAMPLE_SIZE` | `100000` | How many decisions to download |
-| `ST_MODEL_NAME` | `all-MiniLM-L6-v2` | Embedding model (see note below) |
+| `ST_MODEL_NAME` | `paraphrase-multilingual-MiniLM-L12-v2` | Embedding model (see note below) |
 | `CHUNK_SIZE` / `CHUNK_OVERLAP` | `1000` / `100` | Chunk sizing (chars) |
 | `TOP_K` | `5` | Results returned per query |
 | `SEARCH_CANDIDATES` | `30` | Candidates pulled before reranking |
@@ -143,11 +143,12 @@ All knobs live in `src/config.py`, overridable via env / `.env`:
 
 ## Notes
 
-- **Embedding model:** the pipeline pins `sentence-transformers/all-MiniLM-L6-v2`
-  (384-dim, fast) per the project spec. It is an *English-centric* model; for
-  higher Turkish quality set
-  `ST_MODEL_NAME=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
-  (also 384-dim, so nothing else changes).
+- **Embedding model:** the pipeline uses
+  `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (384-dim,
+  Turkish-capable) for good Turkish retrieval quality. To fall back to the
+  faster English-centric model from the original spec set
+  `ST_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2` (also 384-dim, so
+  nothing else changes).
 - Embeddings are unit-normalised, so FAISS squared-L2 distance converts to
   cosine similarity via `cos = 1 − d/2`.
 - Section-weight reranking lets a strong ruling (`KARAR`, ×2.0) outrank a

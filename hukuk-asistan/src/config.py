@@ -78,12 +78,14 @@ EXPECTED_COLUMNS: list[str] = [
 # --------------------------------------------------------------------------- #
 # Embedding model
 # --------------------------------------------------------------------------- #
-# NOTE: the project spec pins all-MiniLM-L6-v2 (384-dim, fast). It is an
-# English-centric model; for higher Turkish quality swap ST_MODEL_NAME for a
-# multilingual model such as
-#   "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-# (also 384-dim, so no other change is needed).
-ST_MODEL_NAME: str = os.getenv("ST_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
+# Turkish-capable multilingual model (384-dim, fast). This replaces the
+# English-centric all-MiniLM-L6-v2 from the original spec for much better
+# Turkish retrieval quality; it is dimension-compatible (384) so the rest of
+# the pipeline is unchanged. To fall back to the English model set
+#   ST_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
+ST_MODEL_NAME: str = os.getenv(
+    "ST_MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+)
 EMBEDDING_DIM: int = int(os.getenv("EMBEDDING_DIM", "384"))
 EMBEDDING_BATCH_SIZE: int = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
 # Normalize embeddings so L2 distance is monotonic with cosine similarity and

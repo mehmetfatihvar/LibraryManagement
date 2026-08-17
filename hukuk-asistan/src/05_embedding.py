@@ -7,8 +7,8 @@ Encode every chunk into a dense vector with sentence-transformers.
     Output: data/processed/embeddings.npy          (float32, [N, 384])
             data/processed/embedding_metadata.json (model, dim, count, date)
 
-Model: sentence-transformers/all-MiniLM-L6-v2 (384-dim, fast).
-Batch size 32; uses GPU (CUDA) automatically when available.
+Model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+(384-dim, Turkish-capable). Batch size 32; uses GPU (CUDA) when available.
 
 The .npy rows are written in the exact order of chunks.csv, so
 `embeddings[i]` corresponds to the row whose `chunk_id == i`.
