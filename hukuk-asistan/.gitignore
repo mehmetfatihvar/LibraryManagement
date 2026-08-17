@@ -1,0 +1,22 @@
+# Virtualenv
+venv/
+.venv/
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Data artifacts (large / generated — do NOT commit)
+data/raw/*.csv
+data/processed/*.csv
+data/processed/*.parquet
+data/processed/*.npy
+data/processed/*.index
+data/processed/*.json
+
+# Keep directory structure and test queries
+!data/queries/test_queries.json
+!data/.gitkeep
